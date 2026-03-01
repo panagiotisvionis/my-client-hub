@@ -3,6 +3,7 @@ import { LayoutDashboard, Users, CalendarDays, Euro, Menu, X } from 'lucide-reac
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { BackupRestore } from './BackupRestore';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Επισκόπηση' },
@@ -77,7 +78,8 @@ export function AppSidebar() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-3">
+          <BackupRestore />
           <p className="text-xs text-sidebar-foreground/40 text-center">
             Τα δεδομένα αποθηκεύονται τοπικά
           </p>
