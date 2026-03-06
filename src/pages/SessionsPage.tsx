@@ -132,6 +132,7 @@ export default function SessionsPage() {
       </div>
 
       <SessionFormDialog
+        key={editingSession?.id ?? 'new'}
         open={dialogOpen}
         onOpenChange={o => { setDialogOpen(o); if (!o) setEditingSession(undefined); }}
         onSubmit={handleSubmit}
