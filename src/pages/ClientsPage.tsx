@@ -116,6 +116,7 @@ export default function ClientsPage() {
       )}
 
       <ClientFormDialog
+        key={editingClient?.id ?? 'new'}
         open={dialogOpen}
         onOpenChange={o => { setDialogOpen(o); if (!o) setEditingClient(undefined); }}
         onSubmit={handleSubmit}
