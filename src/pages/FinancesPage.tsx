@@ -3,9 +3,13 @@ import { AppLayout } from '@/components/AppLayout';
 import { PageHeader } from '@/components/PageHeader';
 import { useClients } from '@/hooks/useClients';
 import { useSessions } from '@/hooks/useSessions';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useTherapistProfile } from '@/hooks/useTherapistProfile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Euro } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Euro, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { generateMonthlyReport } from '@/lib/reports';
 
 const months = [
   'Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος',
@@ -15,6 +19,8 @@ const months = [
 export default function FinancesPage() {
   const { clients } = useClients();
   const { sessions } = useSessions();
+  const { expenses } = useExpenses();
+  const { profile } = useTherapistProfile();
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState<string>(String(now.getMonth()));
@@ -60,7 +66,17 @@ export default function FinancesPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Οικονομικά" subtitle="Αναλυτικά έσοδα ανά θεραπευόμενο" />
+      <PageHeader
+        title="Οικονομικά"
+        subtitle="Αναλυτικά έσοδα ανά θεραπευόμενο"
+        action={
+          <Button variant="outline" size="sm" onClick={() =>
+            generateMonthlyReport(Number(selectedYear), Number(selectedMonth), sessions, clients, expenses, profile)
+          }>
+            <Download className="h-4 w-4 mr-2" /> PDF Αναφορά
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap gap-3 mb-6">
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>

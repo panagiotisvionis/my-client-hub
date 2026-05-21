@@ -6,7 +6,9 @@ import { useSessions } from '@/hooks/useSessions';
 import { ClientFormDialog } from '@/components/ClientFormDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2, User } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, User, Upload, Download } from 'lucide-react';
+import { useRef } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Client } from '@/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -18,6 +20,57 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = useState<Client | undefined>();
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const text = ev.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        const header = lines[0].toLowerCase();
+        let imported = 0;
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').trim());
+          // Support: Επώνυμο,Όνομα,Email,Τηλέφωνο or firstName,lastName,email,phone
+          const [first, last, email, phone] = header.includes('επώνυμο') || header.includes('last')
+            ? [cols[1], cols[0], cols[2], cols[3]]
+            : [cols[0], cols[1], cols[2], cols[3]];
+          if (!first && !last) continue;
+          await addClient({
+            firstName: first ?? '',
+            lastName: last ?? '',
+            email: email ?? '',
+            phone: phone ?? '',
+            sessionFee: 50,
+            description: '',
+            startDate: new Date().toISOString().split('T')[0],
+            isActive: true,
+          });
+          imported++;
+        }
+        toast.success(`${imported} θεραπευόμενοι εισήχθησαν από CSV.`);
+      } catch {
+        toast.error('Σφάλμα ανάγνωσης CSV. Έλεγξε τη μορφή του αρχείου.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    if (csvInputRef.current) csvInputRef.current.value = '';
+  };
+
+  const handleExportCSV = () => {
+    const header = 'Επώνυμο,Όνομα,Email,Τηλέφωνο,Αμοιβή,Ενεργός\n';
+    const rows = clients.map(c =>
+      `"${c.lastName}","${c.firstName}","${c.email}","${c.phone}","${c.sessionFee}","${c.isActive ? 'Ναι' : 'Όχι'}"`
+    ).join('\n');
+    const blob = new Blob(['﻿' + header + rows], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'θεραπευόμενοι.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const filtered = clients.filter(c =>
     `${c.firstName} ${c.lastName} ${c.email} ${c.phone}`.toLowerCase().includes(search.toLowerCase())
@@ -45,9 +98,18 @@ export default function ClientsPage() {
         title="Θεραπευόμενοι"
         subtitle={`${clients.length} θεραπευόμενοι`}
         action={
-          <Button onClick={() => { setEditingClient(undefined); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Νέος Θεραπευόμενος
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <Download className="h-4 w-4 mr-1.5" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-1.5" /> Εισαγωγή CSV
+            </Button>
+            <Button onClick={() => { setEditingClient(undefined); setDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Νέος Θεραπευόμενος
+            </Button>
+            <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
+          </div>
         }
       />
 
