@@ -1,16 +1,15 @@
 -- Migration 002: Reminders, SOAP notes, Recurring sessions, Portal, Blocked dates, Subscriptions
--- Εκτέλεσε αυτό στο Supabase SQL Editor
 
 -- =============================================
 -- Sessions: new columns
 -- =============================================
 alter table sessions add column if not exists portal_token uuid default gen_random_uuid() unique;
 alter table sessions add column if not exists reminder_sent boolean default false;
-alter table sessions add column if not exists soap_s text default '';   -- Subjective
-alter table sessions add column if not exists soap_o text default '';   -- Objective
-alter table sessions add column if not exists soap_a text default '';   -- Assessment
-alter table sessions add column if not exists soap_p text default '';   -- Plan
-alter table sessions add column if not exists recurrence_group_id uuid; -- Groups recurring sessions
+alter table sessions add column if not exists soap_s text default '';
+alter table sessions add column if not exists soap_o text default '';
+alter table sessions add column if not exists soap_a text default '';
+alter table sessions add column if not exists soap_p text default '';
+alter table sessions add column if not exists recurrence_group_id uuid;
 
 -- =============================================
 -- Blocked dates (holidays / vacation)
@@ -25,6 +24,10 @@ create table if not exists blocked_dates (
 );
 
 alter table blocked_dates enable row level security;
+drop policy if exists "users_select_blocked" on blocked_dates;
+drop policy if exists "users_insert_blocked" on blocked_dates;
+drop policy if exists "users_update_blocked" on blocked_dates;
+drop policy if exists "users_delete_blocked" on blocked_dates;
 create policy "users_select_blocked" on blocked_dates for select using (auth.uid() = user_id);
 create policy "users_insert_blocked" on blocked_dates for insert with check (auth.uid() = user_id);
 create policy "users_update_blocked" on blocked_dates for update using (auth.uid() = user_id);
@@ -38,14 +41,15 @@ create table if not exists subscriptions (
   user_id uuid references auth.users(id) on delete cascade not null unique,
   stripe_customer_id text,
   stripe_subscription_id text,
-  status text default 'trialing' check (status in ('trialing','active','canceled','past_due','unpaid')),
-  trial_ends_at timestamptz default now() + interval '14 days',
+  status text default 'trialing',
+  trial_end timestamptz default now() + interval '14 days',
   current_period_end timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
 alter table subscriptions enable row level security;
+drop policy if exists "users_select_subscriptions" on subscriptions;
 create policy "users_select_subscriptions" on subscriptions for select using (auth.uid() = user_id);
 
 -- Auto-insert subscription row on new user signup
@@ -67,13 +71,14 @@ create trigger on_auth_user_created
 -- =============================================
 -- Portal: allow anon to read/update sessions by portal_token
 -- =============================================
--- Anon can read a session only via its portal_token (capability-based access)
+drop policy if exists "portal_read_by_token" on sessions;
+drop policy if exists "portal_update_by_token" on sessions;
+
 create policy "portal_read_by_token" on sessions
   for select
   to anon
   using (portal_token is not null);
 
--- Anon can update status via portal (confirm/cancel only)
 create policy "portal_update_by_token" on sessions
   for update
   to anon

@@ -1,5 +1,4 @@
 -- TherapyDesk - Initial Schema
--- Εκτέλεσε αυτό το SQL στο Supabase SQL Editor
 
 -- =============================================
 -- TABLES
@@ -79,30 +78,50 @@ alter table waiting_list enable row level security;
 alter table invoices enable row level security;
 
 -- Clients policies
+drop policy if exists "users_select_clients" on clients;
+drop policy if exists "users_insert_clients" on clients;
+drop policy if exists "users_update_clients" on clients;
+drop policy if exists "users_delete_clients" on clients;
 create policy "users_select_clients" on clients for select using (auth.uid() = user_id);
 create policy "users_insert_clients" on clients for insert with check (auth.uid() = user_id);
 create policy "users_update_clients" on clients for update using (auth.uid() = user_id);
 create policy "users_delete_clients" on clients for delete using (auth.uid() = user_id);
 
 -- Sessions policies
+drop policy if exists "users_select_sessions" on sessions;
+drop policy if exists "users_insert_sessions" on sessions;
+drop policy if exists "users_update_sessions" on sessions;
+drop policy if exists "users_delete_sessions" on sessions;
 create policy "users_select_sessions" on sessions for select using (auth.uid() = user_id);
 create policy "users_insert_sessions" on sessions for insert with check (auth.uid() = user_id);
 create policy "users_update_sessions" on sessions for update using (auth.uid() = user_id);
 create policy "users_delete_sessions" on sessions for delete using (auth.uid() = user_id);
 
 -- Expenses policies
+drop policy if exists "users_select_expenses" on expenses;
+drop policy if exists "users_insert_expenses" on expenses;
+drop policy if exists "users_update_expenses" on expenses;
+drop policy if exists "users_delete_expenses" on expenses;
 create policy "users_select_expenses" on expenses for select using (auth.uid() = user_id);
 create policy "users_insert_expenses" on expenses for insert with check (auth.uid() = user_id);
 create policy "users_update_expenses" on expenses for update using (auth.uid() = user_id);
 create policy "users_delete_expenses" on expenses for delete using (auth.uid() = user_id);
 
 -- Waiting list policies
+drop policy if exists "users_select_waiting" on waiting_list;
+drop policy if exists "users_insert_waiting" on waiting_list;
+drop policy if exists "users_update_waiting" on waiting_list;
+drop policy if exists "users_delete_waiting" on waiting_list;
 create policy "users_select_waiting" on waiting_list for select using (auth.uid() = user_id);
 create policy "users_insert_waiting" on waiting_list for insert with check (auth.uid() = user_id);
 create policy "users_update_waiting" on waiting_list for update using (auth.uid() = user_id);
 create policy "users_delete_waiting" on waiting_list for delete using (auth.uid() = user_id);
 
 -- Invoices policies
+drop policy if exists "users_select_invoices" on invoices;
+drop policy if exists "users_insert_invoices" on invoices;
+drop policy if exists "users_update_invoices" on invoices;
+drop policy if exists "users_delete_invoices" on invoices;
 create policy "users_select_invoices" on invoices for select using (auth.uid() = user_id);
 create policy "users_insert_invoices" on invoices for insert with check (auth.uid() = user_id);
 create policy "users_update_invoices" on invoices for update using (auth.uid() = user_id);

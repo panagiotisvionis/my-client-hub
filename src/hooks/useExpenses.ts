@@ -40,9 +40,11 @@ export function useExpenses() {
 
   const addMutation = useMutation({
     mutationFn: async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
       const { data, error } = await supabase
         .from('expenses')
-        .insert([{ date: expense.date, category: expense.category, description: expense.description, amount: expense.amount }])
+        .insert([{ date: expense.date, category: expense.category, description: expense.description, amount: expense.amount, user_id: user.id }])
         .select()
         .single();
       if (error) throw error;

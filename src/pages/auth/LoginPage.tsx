@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -7,13 +7,22 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { validateInviteCode, markCodeUsed } from '@/hooks/useInviteCodes';
 
 export default function LoginPage() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, loading } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!loading && user) navigate('/', { replace: true });
+  }, [user, loading]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -47,17 +56,31 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    setLoading(true);
+    setSubmitting(true);
+
+    if (mode === 'register') {
+      const valid = await validateInviteCode(inviteCode);
+      if (!valid) {
+        toast.error('Μη έγκυρος κωδικός πρόσκλησης.');
+        setSubmitting(false);
+        return;
+      }
+    }
 
     const fn = mode === 'login' ? signIn : signUp;
     const { error } = await fn(email, password);
 
     if (error) {
       toast.error(error);
-    } else if (mode === 'register') {
-      toast.success('Ο λογαριασμός δημιουργήθηκε! Ελέγξτε το email σας για επιβεβαίωση.');
+      setSubmitting(false);
+    } else {
+      if (mode === 'register') {
+        // Mark invite code as used (userId set after auth state update)
+        const { data: { user: newUser } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
+        if (newUser) await markCodeUsed(inviteCode, newUser.id);
+        toast.success('Ο λογαριασμός δημιουργήθηκε! Έχετε 14 ημέρες δωρεάν δοκιμή.');
+      }
     }
-    setLoading(false);
   };
 
   return (
@@ -102,8 +125,22 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {mode === 'register' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="invite">Κωδικός Πρόσκλησης</Label>
+                <Input
+                  id="invite"
+                  placeholder="XXXXX-XXXXX"
+                  value={inviteCode}
+                  onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Ζήτησε κωδικό από τον διαχειριστή.</p>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {mode === 'login' ? 'Σύνδεση' : 'Δημιουργία Λογαριασμού'}
             </Button>
           </form>

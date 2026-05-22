@@ -132,7 +132,7 @@ export default function SubscriptionPage() {
               <span className="text-xs font-semibold uppercase tracking-widest text-primary">TherapyDesk Pro</span>
             </div>
             <div className="flex items-end gap-1 mb-1">
-              <span className="text-4xl font-display font-bold text-primary">20€</span>
+              <span className="text-4xl font-display font-bold text-primary">25€</span>
               <span className="text-muted-foreground mb-1">/μήνα</span>
             </div>
             <p className="text-sm text-muted-foreground mb-5">14 ημέρες δωρεάν δοκιμή · ακύρωση οποτεδήποτε</p>

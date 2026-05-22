@@ -61,9 +61,11 @@ export function useClients() {
 
   const addMutation = useMutation({
     mutationFn: async (client: Omit<Client, 'id' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
       const { data, error } = await supabase
         .from('clients')
-        .insert([toDbRow(client)])
+        .insert([{ ...toDbRow(client), user_id: user.id }])
         .select()
         .single();
       if (error) throw error;

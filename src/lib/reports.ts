@@ -5,15 +5,38 @@ import { Client, Session, Expense, TherapistProfile, SESSION_TYPE_LABELS, EXPENS
 function fmt(d: string) { return new Date(d).toLocaleDateString('el-GR'); }
 function fmtMoney(n: number) { return `${n.toFixed(2)} €`; }
 
-export function generateMonthlyReport(
+async function loadNotoSans(doc: jsPDF) {
+  const toBase64 = async (url: string) => {
+    const res = await fetch(url);
+    const buf = await res.arrayBuffer();
+    let binary = '';
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  };
+
+  const [regular, bold] = await Promise.all([
+    toBase64('/fonts/NotoSans-Regular.ttf'),
+    toBase64('/fonts/NotoSans-Bold.ttf'),
+  ]);
+
+  doc.addFileToVFS('NotoSans-Regular.ttf', regular);
+  doc.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal');
+  doc.addFileToVFS('NotoSans-Bold.ttf', bold);
+  doc.addFont('NotoSans-Bold.ttf', 'NotoSans', 'bold');
+}
+
+export async function generateMonthlyReport(
   year: number,
   month: number,
   sessions: Session[],
   clients: Client[],
   expenses: Expense[],
   profile: TherapistProfile
-): void {
+): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  await loadNotoSans(doc);
+
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 18;
 
@@ -24,10 +47,10 @@ export function generateMonthlyReport(
   doc.rect(0, 0, pageW, 38, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('NotoSans', 'bold');
   doc.text('ΜΗΝΙΑΙΑ ΑΝΑΦΟΡΑ', margin, 16);
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   doc.text(monthName.toUpperCase(), margin, 25);
   if (profile.name) doc.text(profile.name, pageW - margin, 25, { align: 'right' });
   doc.setFontSize(8);
@@ -49,7 +72,6 @@ export function generateMonthlyReport(
   const totalUnpaid = totalRevenue - totalPaid;
   const totalExpenses = monthExpenses.reduce((a, e) => a + e.amount, 0);
   const netProfit = totalRevenue - totalExpenses;
-  const noShows = monthSessions.filter(s => s.status === 'no_show').length;
 
   let y = 50;
 
@@ -67,20 +89,23 @@ export function generateMonthlyReport(
     doc.roundedRect(x, y, boxW, 18, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
+    doc.setFont('NotoSans', 'normal');
     doc.text(box.label, x + boxW / 2, y + 6, { align: 'center' });
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NotoSans', 'bold');
     doc.text(box.value, x + boxW / 2, y + 13, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('NotoSans', 'normal');
   });
 
   doc.setTextColor(30, 30, 30);
   y += 24;
 
+  const tableFont = { font: 'NotoSans' };
+
   // Sessions table
   if (monthSessions.length > 0) {
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NotoSans', 'bold');
     doc.text('ΑΝΑΛΥΣΗ ΣΥΝΕΔΡΙΩΝ', margin, y);
     y += 4;
 
@@ -99,8 +124,8 @@ export function generateMonthlyReport(
           s.paid ? 'Εξοφλημένη' : 'Εκκρεμής',
         ];
       }),
-      headStyles: { fillColor: [42, 90, 60], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5 },
+      headStyles: { fillColor: [42, 90, 60], textColor: 255, fontStyle: 'bold', fontSize: 8, ...tableFont },
+      bodyStyles: { fontSize: 7.5, ...tableFont },
       alternateRowStyles: { fillColor: [245, 248, 246] },
       columnStyles: { 4: { halign: 'right' }, 5: { halign: 'center' } },
     });
@@ -111,7 +136,7 @@ export function generateMonthlyReport(
   // Expenses table
   if (monthExpenses.length > 0) {
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NotoSans', 'bold');
     doc.text('ΔΑΠΑΝΕΣ', margin, y);
     y += 4;
 
@@ -125,8 +150,8 @@ export function generateMonthlyReport(
         e.description,
         fmtMoney(e.amount),
       ]),
-      headStyles: { fillColor: [180, 60, 60], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5 },
+      headStyles: { fillColor: [180, 60, 60], textColor: 255, fontStyle: 'bold', fontSize: 8, ...tableFont },
+      bodyStyles: { fontSize: 7.5, ...tableFont },
       alternateRowStyles: { fillColor: [255, 248, 248] },
       columnStyles: { 3: { halign: 'right' } },
     });
@@ -145,7 +170,7 @@ export function generateMonthlyReport(
       ['Σύνολο Δαπανών', fmtMoney(totalExpenses)],
       ['ΚΑΘΑΡΟ ΚΕΡΔΟΣ', fmtMoney(netProfit)],
     ],
-    bodyStyles: { fontSize: 8 },
+    bodyStyles: { fontSize: 8, ...tableFont },
     columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     didParseCell: (data) => {
       if (data.row.index === 4) {
@@ -158,8 +183,9 @@ export function generateMonthlyReport(
   // Footer
   const footerY = doc.internal.pageSize.getHeight() - 10;
   doc.setFontSize(7);
+  doc.setFont('NotoSans', 'normal');
   doc.setTextColor(150, 150, 150);
-  doc.text(`TherapyDesk — Αναφορά ${monthName} — ${new Date().toLocaleDateString('el-GR')}`, pageW / 2, footerY, { align: 'center' });
+  doc.text(`TherapyDesk — ${monthName} — ${new Date().toLocaleDateString('el-GR')}`, pageW / 2, footerY, { align: 'center' });
 
   doc.save(`Αναφορά-${year}-${String(month + 1).padStart(2, '0')}.pdf`);
 }

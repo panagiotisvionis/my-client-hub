@@ -33,8 +33,10 @@ export function useBlockedDates() {
 
   const addMutation = useMutation({
     mutationFn: async (b: Omit<BlockedDate, 'id' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
       const { error } = await supabase.from('blocked_dates').insert([{
-        start_date: b.startDate, end_date: b.endDate, reason: b.reason,
+        user_id: user.id, start_date: b.startDate, end_date: b.endDate, reason: b.reason,
       }]);
       if (error) throw error;
     },

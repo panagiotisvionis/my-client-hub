@@ -152,7 +152,7 @@ export default function InvoicesPage() {
     const client = getClient(invoice.clientId);
     if (!client) return toast.error('Δεν βρέθηκε ο θεραπευόμενος.');
     if (!profileComplete) return toast.error('Συμπλήρωσε πρώτα το προφίλ σου στις Ρυθμίσεις.');
-    generateInvoicePDF(invoice, client, sessions, profile);
+    generateInvoicePDF(invoice, client, sessions, profile).catch(e => console.error('PDF error:', e));
   };
 
   const handleSendMyData = async (invoice: Invoice) => {

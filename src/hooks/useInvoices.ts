@@ -46,9 +46,12 @@ export function useInvoices() {
 
   const addMutation = useMutation({
     mutationFn: async (invoice: Omit<Invoice, 'id' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
       const { data, error } = await supabase
         .from('invoices')
         .insert([{
+          user_id: user.id,
           client_id: invoice.clientId,
           invoice_number: invoice.invoiceNumber,
           date: invoice.date,

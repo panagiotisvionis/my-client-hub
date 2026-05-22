@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CalendarDays, Euro, Menu, X,
-  Calendar, TrendingUp, FileText, Clock, Settings, BarChart3, CreditCard,
+  Calendar, TrendingUp, FileText, Clock, Settings, BarChart3, CreditCard, ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 const navGroups = [
   {
@@ -42,6 +43,7 @@ export function AppSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const { subscription, isActive } = useSubscription();
+  const { isAdmin } = useUserProfile();
 
   const SidebarContent = () => (
     <aside className="h-full w-64 bg-sidebar text-sidebar-foreground flex flex-col">
@@ -93,6 +95,21 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-sidebar-border space-y-0.5">
+        {isAdmin && (
+          <Link
+            to="/admin"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 w-full',
+              location.pathname === '/admin'
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Admin Panel
+          </Link>
+        )}
         {/* Subscription status */}
         <Link
           to="/subscription"

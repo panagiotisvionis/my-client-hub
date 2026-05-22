@@ -20,6 +20,7 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/auth/LoginPage';
 import PortalPage from './pages/portal/PortalPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import AdminPage from './pages/AdminPage';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient({
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/waiting-list" element={<ProtectedRoute><WaitingListPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

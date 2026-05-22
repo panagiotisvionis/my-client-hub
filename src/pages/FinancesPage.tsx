@@ -72,6 +72,7 @@ export default function FinancesPage() {
         action={
           <Button variant="outline" size="sm" onClick={() =>
             generateMonthlyReport(Number(selectedYear), Number(selectedMonth), sessions, clients, expenses, profile)
+              .catch(e => console.error('PDF error:', e))
           }>
             <Download className="h-4 w-4 mr-2" /> PDF Αναφορά
           </Button>

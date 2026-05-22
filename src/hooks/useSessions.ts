@@ -112,19 +112,23 @@ export function useSessions(clientId?: string) {
       session: Omit<Session, 'id' | 'createdAt'>;
       recurrence?: { type: RecurrenceType; endDate: string };
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
+
       if (recurrence && recurrence.type !== 'none') {
         const dates = generateRecurringDates(session.date, recurrence.type, recurrence.endDate);
         const groupId = crypto.randomUUID();
         const rows = dates.map(date => ({
           ...toDbRow({ ...session, date, recurrenceGroupId: groupId }),
           recurrence_group_id: groupId,
+          user_id: user.id,
         }));
         const { error } = await supabase.from('sessions').insert(rows);
         if (error) throw error;
         return dates.length;
       } else {
         const { data, error } = await supabase
-          .from('sessions').insert([toDbRow(session)]).select().single();
+          .from('sessions').insert([{ ...toDbRow(session), user_id: user.id }]).select().single();
         if (error) throw error;
         return toSession(data as DbSession);
       }

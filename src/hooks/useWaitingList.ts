@@ -42,9 +42,12 @@ export function useWaitingList() {
 
   const addMutation = useMutation({
     mutationFn: async (entry: Omit<WaitingListEntry, 'id' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Δεν είστε συνδεδεμένος.');
       const { data, error } = await supabase
         .from('waiting_list')
         .insert([{
+          user_id: user.id,
           first_name: entry.firstName,
           last_name: entry.lastName,
           phone: entry.phone,
