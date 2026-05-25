@@ -1,6 +1,6 @@
 // Supabase Edge Function: stripe-webhook
 // POST /stripe-webhook  (called by Stripe)
-// Handles: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
+// Handles: checkout.session.completed, customer.subscription.updated/deleted, invoice.payment_failed
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
@@ -36,23 +36,49 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  const upsertSubscription = async (
+  // Update both subscriptions table AND user_profiles.status
+  const syncSubscription = async (
     customerId: string,
-    update: Record<string, unknown>,
+    stripeStatus: string,
+    extra: Record<string, unknown> = {},
   ) => {
+    // 1. Update subscriptions table
     await supabase
       .from('subscriptions')
-      .update(update)
+      .update({ status: stripeStatus, ...extra })
       .eq('stripe_customer_id', customerId);
+
+    // 2. Map Stripe status → user_profiles status
+    let profileStatus: string;
+    if (stripeStatus === 'active' || stripeStatus === 'trialing') {
+      profileStatus = 'active';
+    } else if (stripeStatus === 'past_due' || stripeStatus === 'unpaid') {
+      profileStatus = 'trial'; // grace period — still let them in
+    } else {
+      profileStatus = 'suspended'; // canceled, incomplete_expired
+    }
+
+    // 3. Find user_id from subscriptions table
+    const { data: subRow } = await supabase
+      .from('subscriptions')
+      .select('user_id')
+      .eq('stripe_customer_id', customerId)
+      .single();
+
+    if (subRow?.user_id) {
+      await supabase
+        .from('user_profiles')
+        .update({ status: profileStatus })
+        .eq('id', subRow.user_id);
+    }
   };
 
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-      await upsertSubscription(session.customer as string, {
+      await syncSubscription(session.customer as string, sub.status, {
         stripe_subscription_id: sub.id,
-        status: sub.status,
         current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
         trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
       });
@@ -61,9 +87,8 @@ Deno.serve(async (req) => {
 
     case 'customer.subscription.updated': {
       const sub = event.data.object as Stripe.Subscription;
-      await upsertSubscription(sub.customer as string, {
+      await syncSubscription(sub.customer as string, sub.status, {
         stripe_subscription_id: sub.id,
-        status: sub.status,
         current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
         trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
       });
@@ -72,9 +97,8 @@ Deno.serve(async (req) => {
 
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription;
-      await upsertSubscription(sub.customer as string, {
+      await syncSubscription(sub.customer as string, 'canceled', {
         stripe_subscription_id: sub.id,
-        status: 'cancelled',
         current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
       });
       break;
@@ -82,12 +106,17 @@ Deno.serve(async (req) => {
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice;
-      await upsertSubscription(invoice.customer as string, { status: 'past_due' });
+      await syncSubscription(invoice.customer as string, 'past_due');
+      break;
+    }
+
+    case 'invoice.paid': {
+      const invoice = event.data.object as Stripe.Invoice;
+      await syncSubscription(invoice.customer as string, 'active');
       break;
     }
 
     default:
-      // Unhandled event type — ignore
       break;
   }
 
